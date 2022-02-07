@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="96f98b12-1df5-4e87-9d0e-bc48a81c02e9" name="ghc">
+        <fileTransfer rootFolder="/afs/andrew.cmu.edu/usr9/gesong" accessType="SFTP" host="ghc30.ghc.andrew.cmu.edu" port="22" sshConfigId="f94893a2-f707-4527-b30f-0856089fa341" sshConfig="gesong@ghc30.ghc.andrew.cmu.edu:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
