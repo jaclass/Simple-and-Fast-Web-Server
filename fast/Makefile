@@ -8,22 +8,11 @@ LIB = -lpthread
 server: clean server.c csapp.o cgi.o
 	$(CC) $(CFLAGS) -o server server.c csapp.o cgi.o $(LIB)
 
-pipe_demo: pipe_read pipe_write
-
-cgi_test:
-	$(CC) $(CFLAGS) -o cgi cgi.c
-
-pipe_read: clean pipe_read.c csapp.o cgi.o
-	$(CC) $(CFLAGS) -o adder pipe_read.c csapp.o cgi.o $(LIB)
-
-pipe_write:
-	$(CC) $(CFLAGS) -o pipe_write pipe_write.c 
-
 code_cache: code_cache.c csapp.o
 	$(CC) $(CFLAGS) -o code_cache code_cache.c csapp.o $(LIB)
 
-cgi:
-	(cd cgi-bin; make)
+cgi-bin-compile:
+	(cd cgi-bin; make clean; make)
 
 csapp.o:
 	$(CC) $(CFLAGS) -c csapp.c
@@ -33,3 +22,4 @@ cgi.o:
 
 clean:
 	rm -f *.o pipe_read pipe_write code_cache *~
+	(cd cgi-bin; make clean)

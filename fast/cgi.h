@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "csapp.h"
 
 #define FIFO_PREFIX "/tmp/fifo/"
 #define FIFO_SUFFIX "-cgi-pipe"
