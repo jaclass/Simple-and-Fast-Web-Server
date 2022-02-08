@@ -4,7 +4,6 @@
  *     GET method to serve static and dynamic content.
  */
 #include "csapp.h"
-#include "cgi.h"
 
 void *doit(void *vargp);
 void read_requesthdrs(rio_t *rp);
@@ -129,7 +128,7 @@ void read_requesthdrs(rio_t *rp)
 int parse_uri(char *uri, char *filename, char *cgiargs)
 {
     char *ptr;
-
+    printf("uri: %s\n", uri);
     if (!strstr(uri, "cgi-bin"))
     { /* Static content */                 //line:netp:parseuri:isstatic
         strcpy(cgiargs, "");               //line:netp:parseuri:clearcgi
@@ -151,6 +150,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
             strcpy(cgiargs, ""); //line:netp:parseuri:endextract
         strcpy(filename, ".");   //line:netp:parseuri:beginconvert2
         strcat(filename, uri);   //line:netp:parseuri:endconvert2
+        printf("cgi filename: %s\n", filename);
         return 0;
     }
 }
@@ -203,26 +203,22 @@ void get_filetype(char *filename, char *filetype)
 /* $begin serve_dynamic */
 void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
-    char buf[MAXLINE], pipename[MAXLINE], response[MAXLINE];
+    char buf[MAXLINE], *emptylist[] = {NULL};
 
     /* Return first part of HTTP response */
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Server: Tiny Web Server\r\n");
     Rio_writen(fd, buf, strlen(buf));
-    
-    printf("%s\n", cgiargs);
 
-    cgi_pipename(filename, pipename);
-    cgi_request(pipename, cgiargs);
-    cgi_response(pipename, response);
-
-    sprintf(buf, "Content-length: %d\r\n", (int)strlen(response) + 2);
-    Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "Content-type: text/html\r\n\r\n");
-    Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "%s\r\n", response);
-    Rio_writen(fd, buf, strlen(buf));
+    if (Fork() == 0)
+    { /* child */ //line:netp:servedynamic:fork
+        /* Real server would set all CGI vars here */
+        setenv("QUERY_STRING", cgiargs, 1);                         //line:netp:servedynamic:setenv
+        Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    //line:netp:servedynamic:dup2
+        Execve(filename, emptylist, environ); /* Run CGI program */ //line:netp:servedynamic:execve
+    }
+    Wait(NULL); /* Parent waits for and reaps child */ //line:netp:servedynamic:wait
 }
 /* $end serve_dynamic */
 

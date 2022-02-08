@@ -5,21 +5,18 @@ CFLAGS = -O2 -Wall -I .
 # Others systems will probably require something different.
 LIB = -lpthread
 
-server: clean server.c csapp.o cgi.o
-	$(CC) $(CFLAGS) -o server server.c csapp.o cgi.o $(LIB)
-
-code_cache: code_cache.c csapp.o
-	$(CC) $(CFLAGS) -o code_cache code_cache.c csapp.o $(LIB)
-
-cgi-bin-compile:
-	(cd cgi-bin; make clean; make)
+server: clean server.c csapp.o
+	$(CC) $(CFLAGS) -o server server.c csapp.o $(LIB)
 
 csapp.o:
 	$(CC) $(CFLAGS) -c csapp.c
 
-cgi.o:
-	$(CC) $(CFLAGS) -c cgi.c
+dll: clean
+	$(CC) $(CFLAGS) -rdynamic -o dll dll.c -ldl
+
+cgi:
+	(cd cgi-bin; make)
 
 clean:
-	rm -f *.o pipe_read pipe_write code_cache *~
+	rm -f *.o tiny dll *~
 	(cd cgi-bin; make clean)
