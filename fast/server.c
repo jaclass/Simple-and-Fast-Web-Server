@@ -7,7 +7,7 @@
 #include <dirent.h>
 #include "csapp.h"
 
-int process_num = 16;
+int process_num = 8;
 
 #define CGI_SCIPTS_PATH "./cgi-bin/"
 #define MAX_CGI_BINS 1024
@@ -22,7 +22,6 @@ static int (*cgi_funcs[MAX_CGI_BINS])(void);
 // Number of cgi scripts
 static int cgi_num = 0;
 
-
 void initialize();
 void doit(int fd);
 void read_requesthdrs(rio_t *rp);
@@ -32,41 +31,10 @@ void get_filetype(char *filename, char *filetype);
 void serve_dynamic(int fd, char *filename, char *cgiargs);
 void clienterror(int fd, char *cause, char *errnum,
                  char *shortmsg, char *longmsg);
-void create_process_pool(int num, int *process_ids, int listenfd);
+void create_process_pool(int num, int listenfd);
 void handle(int listenfd);
 int get_dynamic_handler_index(char *name);
 
-
-/* $begin servermain */
-int main(int argc, char **argv)
-{
-    int listenfd, port;
-    int process_id[process_num];
-
-    /* Check command line args */
-    if (argc != 2)
-    {
-        fprintf(stderr, "usage: %s <port>\n", argv[0]);
-        exit(1);
-    }
-
-    initialize();
-    port = atoi(argv[1]);
-
-    listenfd = Open_listenfd(port);
-    create_process_pool(process_num, process_id, listenfd);
-
-    for (int i = 0; i < process_num; i++) {
-        int pid = Wait(NULL);
-    }
-    printf("server close!\n");
-    close(listenfd);
-}
-/* $end servermain */
-
-/*
- * initialize - initialize dynamic linking function
- */
 /* $begin initialize */
 void initialize()
 {
@@ -106,7 +74,7 @@ void initialize()
                 *ptr = '\0';
                 strcpy(cgi_bin_names[cgi_num], dir->d_name);
 
-                memset(sopath,0,strlen(sopath));
+                memset(sopath, 0, strlen(sopath));
                 cgi_num++;
             }
         }
@@ -115,42 +83,74 @@ void initialize()
 }
 /* $begin initialize */
 
-
 /*
- * create_process_pool - create persistent processes that can handle requests
+ * get_dynamic_handler_index - get the index of a cgi service
  */
-/* $begin create_process_pool */
-void create_process_pool(int num, int *process_ids, int listenfd)
+/* $begin get_dynamic_handler_index */
+int get_dynamic_handler_index(char *name)
 {
+    for (int i = 0; i < cgi_num; i++)
+    {
+        if (!strcmp(name, cgi_bin_names[i]))
+        {
+            return i;
+        }
+    }
+    return cgi_num;
+}
+/* $end get_dynamic_handler_index */
+
+
+int main(int argc, char **argv)
+{
+    int listenfd;
+
+    /* Check command line args */
+    if (argc != 2)
+    {
+        fprintf(stderr, "usage: %s <port>\n", argv[0]);
+        exit(1);
+    }
+
+    initialize();
+
+    listenfd = Open_listenfd(atoi(argv[1]));
+    create_process_pool(process_num, listenfd);
+
+    for (int i = 0; i < process_num; i++) {
+        Wait(NULL);
+    }
+
+    return 0;
+}
+/* $end tinymain */
+
+void create_process_pool(int num, int listenfd) {
+    int pid;
     for (int i = 0; i < num; i++) {
-        int process_id = Fork();
-        if (process_id == 0) {  // worker process
+        if ((pid = Fork()) == 0) {
             handle(listenfd);
             exit(0);
-        } else {
-            process_ids[i] = process_id;
         }
     }
 }
-/* $end create_process_pool */
 
-/*
- * handle - persistently accept the connection and handle request
- */
-/* $begin handle */
-void handle(int listenfd)
-{
-    int connfd, clientlen;
-    struct sockaddr_in clientaddr;
-    while (1)
-    {
+void handle(int listenfd) {
+    int connfd;
+    socklen_t clientlen;
+    struct sockaddr_storage clientaddr;
+    char hostname[MAXLINE], port[MAXLINE];
+
+    while (1) {
         clientlen = sizeof(clientaddr);
-        connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen); 
-        doit(connfd);                                          
-        Close(connfd);                                            
+        connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen); // line:netp:tiny:accept
+        getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE,
+                    port, MAXLINE, 0);
+        printf("Accepted connection from (%s, %s)\n", hostname, port);
+        doit(connfd);  // line:netp:tiny:doit
+        Close(connfd); // line:netp:tiny:close
     }
 }
-/* $end handle */
 
 /*
  * doit - handle one HTTP request/response transaction
@@ -166,7 +166,9 @@ void doit(int fd)
 
     /* Read request line and headers */
     Rio_readinitb(&rio, fd);
-    Rio_readlineb(&rio, buf, MAXLINE);             // line:netp:doit:readrequest
+    if (!Rio_readlineb(&rio, buf, MAXLINE)) // line:netp:doit:readrequest
+        return;
+    printf("%s", buf);
     sscanf(buf, "%s %s %s", method, uri, version); // line:netp:doit:parserequest
     if (strcasecmp(method, "GET"))
     { // line:netp:doit:beginrequesterr
@@ -197,10 +199,10 @@ void doit(int fd)
     }
     else
     { /* Serve dynamic content */
-        if (get_dynamic_handler_index(strrchr(filename, '/') + 1) >= cgi_num)
+        if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
         { // line:netp:doit:executable
             clienterror(fd, filename, "403", "Forbidden",
-                        "Tiny hasn't loaded the CGI program");
+                        "Tiny couldn't run the CGI program");
             return;
         }
         serve_dynamic(fd, filename, cgiargs); // line:netp:doit:servedynamic
@@ -209,7 +211,7 @@ void doit(int fd)
 /* $end doit */
 
 /*
- * read_requesthdrs - read and parse HTTP request headers
+ * read_requesthdrs - read HTTP request headers
  */
 /* $begin read_requesthdrs */
 void read_requesthdrs(rio_t *rp)
@@ -217,30 +219,15 @@ void read_requesthdrs(rio_t *rp)
     char buf[MAXLINE];
 
     Rio_readlineb(rp, buf, MAXLINE);
-    // printf("Handle by process: %d\n",  getpid());
+    printf("%s", buf);
     while (strcmp(buf, "\r\n"))
     { // line:netp:readhdrs:checkterm
         Rio_readlineb(rp, buf, MAXLINE);
-        // printf("%s", buf);
+        printf("%s", buf);
     }
     return;
 }
 /* $end read_requesthdrs */
-
-/*
- * get_dynamic_handler_index - get the index of a cgi service
- */
-/* $begin get_dynamic_handler_index */
-int get_dynamic_handler_index(char * name)
-{
-    for (int i = 0; i < cgi_num; i++) {
-        if (!strcmp(name, cgi_bin_names[i])) {
-            return i;
-        }
-    }
-    return cgi_num;
-}
-/* $end get_dynamic_handler_index */
 
 /*
  * parse_uri - parse URI into filename and CGI args
@@ -289,9 +276,12 @@ void serve_static(int fd, char *filename, int filesize)
     /* Send response headers to client */
     get_filetype(filename, filetype);    // line:netp:servestatic:getfiletype
     sprintf(buf, "HTTP/1.0 200 OK\r\n"); // line:netp:servestatic:beginserve
-    sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
-    sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
-    sprintf(buf, "%sContent-type: %s\r\n\r\n", buf, filetype);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Server: Tiny Web Server\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Content-length: %d\r\n", filesize);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "Content-type: %s\r\n\r\n", filetype);
     Rio_writen(fd, buf, strlen(buf)); // line:netp:servestatic:endserve
 
     /* Send response body to client */
@@ -311,6 +301,8 @@ void get_filetype(char *filename, char *filetype)
         strcpy(filetype, "text/html");
     else if (strstr(filename, ".gif"))
         strcpy(filetype, "image/gif");
+    else if (strstr(filename, ".png"))
+        strcpy(filetype, "image/png");
     else if (strstr(filename, ".jpg"))
         strcpy(filetype, "image/jpeg");
     else
@@ -326,26 +318,19 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
     char buf[MAXLINE];
     int index;
-
     /* Return first part of HTTP response */
     sprintf(buf, "HTTP/1.0 200 OK\r\n");
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Server: Tiny Web Server\r\n");
     Rio_writen(fd, buf, strlen(buf));
-    
-    // get the index of dynamic handler
-    index = get_dynamic_handler_index(strrchr(filename, '/') + 1);
-    if (index >= cgi_num) {
-        unix_error("cgi scripts not loaded");
-    }
 
-    // do not need to fork process here
-    setenv("QUERY_STRING", cgiargs, 1);                         // line:netp:servedynamic:setenv
     int sfd = dup(STDOUT_FILENO);
+    setenv("QUERY_STRING", cgiargs, 1);                         // line:netp:servedynamic:setenv
     Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    // line:netp:servedynamic:dup2
+    index = get_dynamic_handler_index(strrchr(filename, '/') + 1);
     cgi_funcs[index]();
-    // Recover the stdout
     Dup2(sfd, STDOUT_FILENO);
+    close(sfd);
 }
 /* $end serve_dynamic */
 
@@ -356,25 +341,26 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
 void clienterror(int fd, char *cause, char *errnum,
                  char *shortmsg, char *longmsg)
 {
-    char buf[MAXLINE], body[MAXBUF];
+    char buf[MAXLINE];
 
-    /* Build the HTTP response body */
-    sprintf(body, "<html><title>Tiny Error</title>");
-    sprintf(body, "%s<body bgcolor="
-                  "ffffff"
-                  ">\r\n",
-            body);
-    sprintf(body, "%s%s: %s\r\n", body, errnum, shortmsg);
-    sprintf(body, "%s<p>%s: %s\r\n", body, longmsg, cause);
-    sprintf(body, "%s<hr><em>The Tiny Web server</em>\r\n", body);
-
-    /* Print the HTTP response */
+    /* Print the HTTP response headers */
     sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
     Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "Content-type: text/html\r\n");
+    sprintf(buf, "Content-type: text/html\r\n\r\n");
     Rio_writen(fd, buf, strlen(buf));
-    sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
+
+    /* Print the HTTP response body */
+    sprintf(buf, "<html><title>Tiny Error</title>");
     Rio_writen(fd, buf, strlen(buf));
-    Rio_writen(fd, body, strlen(body));
+    sprintf(buf, "<body bgcolor="
+                 "ffffff"
+                 ">\r\n");
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "%s: %s\r\n", errnum, shortmsg);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "<p>%s: %s\r\n", longmsg, cause);
+    Rio_writen(fd, buf, strlen(buf));
+    sprintf(buf, "<hr><em>The Tiny Web server</em>\r\n");
+    Rio_writen(fd, buf, strlen(buf));
 }
 /* $end clienterror */
