@@ -766,7 +766,8 @@ int open_listenfd(int port)
 	return -1;
  
     /* Eliminates "Address already in use" error from bind. */
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, 
+    // Set SO_REUSEPORT to let socket await only one of the process
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEPORT, 
 		   (const void *)&optval , sizeof(int)) < 0)
 	return -1;
 

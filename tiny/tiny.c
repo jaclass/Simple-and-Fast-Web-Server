@@ -114,7 +114,7 @@ void read_requesthdrs(rio_t *rp)
     while (strcmp(buf, "\r\n"))
     { //line:netp:readhdrs:checkterm
         Rio_readlineb(rp, buf, MAXLINE);
-        printf("%s", buf);
+        //printf("%s", buf);
     }
     return;
 }
@@ -128,7 +128,7 @@ void read_requesthdrs(rio_t *rp)
 int parse_uri(char *uri, char *filename, char *cgiargs)
 {
     char *ptr;
-    printf("uri: %s\n", uri);
+    //printf("uri: %s\n", uri);
     if (!strstr(uri, "cgi-bin"))
     { /* Static content */                 //line:netp:parseuri:isstatic
         strcpy(cgiargs, "");               //line:netp:parseuri:clearcgi
@@ -150,7 +150,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
             strcpy(cgiargs, ""); //line:netp:parseuri:endextract
         strcpy(filename, ".");   //line:netp:parseuri:beginconvert2
         strcat(filename, uri);   //line:netp:parseuri:endconvert2
-        printf("cgi filename: %s\n", filename);
+        //printf("cgi filename: %s\n", filename);
         return 0;
     }
 }
