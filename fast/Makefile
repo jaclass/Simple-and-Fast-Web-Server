@@ -5,14 +5,13 @@ CFLAGS = -g -O2 -Wall -I .
 # Others systems will probably require something different.
 LIB = -lpthread
 
+all: server
+
 server: clean server.c csapp.o cgi
 	$(CC) $(CFLAGS) -rdynamic -o server server.c csapp.o $(LIB) -ldl
 
 csapp.o:
 	$(CC) $(CFLAGS) -c csapp.c
-
-dll: clean
-	$(CC) $(CFLAGS) -rdynamic -o dll dll.c -ldl
 
 cgi:
 	(cd cgi-bin; make)

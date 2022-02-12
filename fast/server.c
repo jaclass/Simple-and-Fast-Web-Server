@@ -7,7 +7,7 @@
 #include <dirent.h>
 #include "csapp.h"
 
-int process_num = 8;
+int process_num = 4;
 
 #define CGI_SCIPTS_PATH "./cgi-bin/"
 #define MAX_CGI_BINS 1024
@@ -31,9 +31,44 @@ void get_filetype(char *filename, char *filetype);
 void serve_dynamic(int fd, char *filename, char *cgiargs);
 void clienterror(int fd, char *cause, char *errnum,
                  char *shortmsg, char *longmsg);
-void create_process_pool(int num, int listenfd);
+void prefork_process(int num, int listenfd);
 void handle(int listenfd);
 int get_dynamic_handler_index(char *name);
+
+
+int main(int argc, char **argv)
+{
+    int listenfd;
+
+    /* Check command line args */
+    if (argc != 2)
+    {
+        fprintf(stderr, "usage: %s <port>\n", argv[0]);
+        exit(1);
+    }
+
+    initialize();
+
+    listenfd = Open_listenfd(atoi(argv[1]));
+    prefork_process(process_num, listenfd);
+
+    for (int i = 0; i < process_num; i++) {
+        Wait(NULL);
+    }
+
+    return 0;
+}
+/* $end tinymain */
+
+void prefork_process(int num, int listenfd) {
+    int pid;
+    for (int i = 0; i < num; i++) {
+        if ((pid = Fork()) == 0) {
+            handle(listenfd);
+            exit(0);
+        }
+    }
+}
 
 /* $begin initialize */
 void initialize()
@@ -100,41 +135,6 @@ int get_dynamic_handler_index(char *name)
 }
 /* $end get_dynamic_handler_index */
 
-
-int main(int argc, char **argv)
-{
-    int listenfd;
-
-    /* Check command line args */
-    if (argc != 2)
-    {
-        fprintf(stderr, "usage: %s <port>\n", argv[0]);
-        exit(1);
-    }
-
-    initialize();
-
-    listenfd = Open_listenfd(atoi(argv[1]));
-    create_process_pool(process_num, listenfd);
-
-    for (int i = 0; i < process_num; i++) {
-        Wait(NULL);
-    }
-
-    return 0;
-}
-/* $end tinymain */
-
-void create_process_pool(int num, int listenfd) {
-    int pid;
-    for (int i = 0; i < num; i++) {
-        if ((pid = Fork()) == 0) {
-            handle(listenfd);
-            exit(0);
-        }
-    }
-}
-
 void handle(int listenfd) {
     int connfd;
     socklen_t clientlen;
@@ -144,9 +144,8 @@ void handle(int listenfd) {
     while (1) {
         clientlen = sizeof(clientaddr);
         connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen); // line:netp:tiny:accept
-        getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE,
-                    port, MAXLINE, 0);
-        printf("Accepted connection from (%s, %s)\n", hostname, port);
+        getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
+        //printf("Accepted connection from (%s, %s)\n", hostname, port);
         doit(connfd);  // line:netp:tiny:doit
         Close(connfd); // line:netp:tiny:close
     }
@@ -199,7 +198,7 @@ void doit(int fd)
     }
     else
     { /* Serve dynamic content */
-        if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
+        if (get_dynamic_handler_index(strrchr(filename, '/') + 1) >= cgi_num)
         { // line:netp:doit:executable
             clienterror(fd, filename, "403", "Forbidden",
                         "Tiny couldn't run the CGI program");
@@ -324,10 +323,10 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     sprintf(buf, "Server: Tiny Web Server\r\n");
     Rio_writen(fd, buf, strlen(buf));
 
+    index = get_dynamic_handler_index(strrchr(filename, '/') + 1);
     int sfd = dup(STDOUT_FILENO);
     setenv("QUERY_STRING", cgiargs, 1);                         // line:netp:servedynamic:setenv
     Dup2(fd, STDOUT_FILENO); /* Redirect stdout to client */    // line:netp:servedynamic:dup2
-    index = get_dynamic_handler_index(strrchr(filename, '/') + 1);
     cgi_funcs[index]();
     Dup2(sfd, STDOUT_FILENO);
     close(sfd);

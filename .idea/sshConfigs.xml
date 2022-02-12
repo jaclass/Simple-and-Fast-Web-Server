@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SshConfigs">
-    <configs>
-      <sshConfig authType="PASSWORD" host="ghc30.ghc.andrew.cmu.edu" id="f94893a2-f707-4527-b30f-0856089fa341" port="22" nameFormat="DESCRIPTIVE" username="gesong" />
-    </configs>
-  </component>
-</project>
