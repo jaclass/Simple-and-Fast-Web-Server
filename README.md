@@ -4,6 +4,8 @@ This project presents an optimized way to implement efficient concurrent CGI pro
 
 Unlike [FastCGI](https://fastcgi-archives.github.io/FastCGI_A_High-Performance_Web_Server_Interface_FastCGI.html) protocol, which requires user to write persistent CGI script, any script written in C with a main() function can be used by server in this project. My implementation apply dynamic linking and prefork thread to achieve efficiency. The perfomance of my CGI implementation is evaluated against a baseline implementation using multi threads fork-and-execute model
 
+NOTE: This tiny project is only a demo, and it's not thoroughly tested. Do not use it in production without any further quality assurance!
+
 ## Structure
 ```
 tiny/                               PART1: a baseline implementation using multi threads fork-and-execute model [REF](https://csapp.cs.cmu.edu/3e/ics3/code/netp/tiny/tiny.c)
@@ -32,7 +34,7 @@ Run one of the server listed above, and then
 
 ## Optimization
 1. Linux execv() will first load the executable binary from disk to memory, which would be a big overhead if the CGI scripts is repeatedly executed. To eliminate this cost, I use dynamic link to cache all .so into server's memory when the server is launched. This part is implmented in initialize() function of fast/server.c. 
-2. Fork() a new process for every incoming CGI request can be expensive. Thus, the server prefork several persistent processes which continuously call accept() and handle the new request. In my design, serveral process accept one shared listenning socket, but it will not cause concurrency issue when SO_REUSEPORT flag is set in setsockopt() (fast/server.c, line 770). This flag will allow one listening scoket be shared among several processes/threads, and the kernel will automatically balance the load between different processes/threads. This approach can be more efficient than having one main accepting process that distribute the requests to a pool of processes, since the overhead of Intra-Process Communication and additional synchronization are eliminated.
+2. Fork() a new process for every incoming CGI request can be expensive. Thus, the server prefork several persistent processes which continuously call accept() and handle the new request. In my design, serveral process accept one shared listenning socket, but it will not cause concurrency issue when SO_REUSEPORT flag is set in setsockopt() (fast/csapp.c, line 770). This flag will allow one listening scoket be shared among several processes/threads, and the kernel will automatically balance the load between different processes/threads. This approach can be more efficient than having one main accepting process that distribute the requests to a pool of processes, since the overhead of Intra-Process Communication and additional synchronization are eliminated.
 Relative information about SO_REUSEPORT flag in Linux man page:
 > SO_REUSEPORT (since Linux 3.9)
 > Permits multiple AF_INET or AF_INET6 sockets to be bound
@@ -57,6 +59,9 @@ Relative information about SO_REUSEPORT flag in Linux man page:
 > having multiple processes compete to receive datagrams on
 > the same socket.
 3. I apply multiple preforked processes instead of preforked threads / thread pool, since I want to keep the CGI scripts API the same as baseline. In the baseline server, the input parameters is passed through environment parameters, and the output is redirected from STDOUT to socket. The only feasible way to isolate IO redirections between different CGI request is to use different processes.
+
+## Simplicity in Design
+This implementation does not invlove any intra-process communcation or synchronization; the cgi protocol supports any C program, and the STDOUT of the cgi script will be redirected to the socket.
 
 ## Evaluation
 1. Benchmark Machine

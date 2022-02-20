@@ -1,0 +1,72 @@
+==================================== Concurrency 1 ====================================
+Concurrency Level:      1
+Failed requests:        0
+Requests per second:    380.49 [#/sec] (mean)
+Time per request:       2.628 [ms] (mean)
+Time per request:       2.628 [ms] (mean, across all concurrent requests)
+Transfer rate:          73.57 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 5 ====================================
+Concurrency Level:      5
+Failed requests:        0
+Requests per second:    864.24 [#/sec] (mean)
+Time per request:       5.785 [ms] (mean)
+Time per request:       1.157 [ms] (mean, across all concurrent requests)
+Transfer rate:          167.11 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 10 ====================================
+Concurrency Level:      10
+Failed requests:        0
+Requests per second:    877.78 [#/sec] (mean)
+Time per request:       11.392 [ms] (mean)
+Time per request:       1.139 [ms] (mean, across all concurrent requests)
+Transfer rate:          169.73 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 20 ====================================
+Concurrency Level:      20
+Failed requests:        0
+Requests per second:    914.55 [#/sec] (mean)
+Time per request:       21.869 [ms] (mean)
+Time per request:       1.093 [ms] (mean, across all concurrent requests)
+Transfer rate:          176.84 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 40 ====================================
+Concurrency Level:      40
+Failed requests:        0
+Requests per second:    918.71 [#/sec] (mean)
+Time per request:       43.539 [ms] (mean)
+Time per request:       1.088 [ms] (mean, across all concurrent requests)
+Transfer rate:          177.64 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 80 ====================================
+Concurrency Level:      80
+Failed requests:        0
+Requests per second:    1001.48 [#/sec] (mean)
+Time per request:       79.882 [ms] (mean)
+Time per request:       0.999 [ms] (mean, across all concurrent requests)
+Transfer rate:          193.65 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 100 ====================================
+Concurrency Level:      100
+Failed requests:        0
+Requests per second:    1045.25 [#/sec] (mean)
+Time per request:       95.671 [ms] (mean)
+Time per request:       0.957 [ms] (mean, across all concurrent requests)
+Transfer rate:          202.11 [Kbytes/sec] received
+=======================================================================================
+
+==================================== Concurrency 120 ====================================
+Concurrency Level:      120
+Failed requests:        0
+Requests per second:    1022.60 [#/sec] (mean)
+Time per request:       117.348 [ms] (mean)
+Time per request:       0.978 [ms] (mean, across all concurrent requests)
+Transfer rate:          197.73 [Kbytes/sec] received
+=======================================================================================
+
