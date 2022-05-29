@@ -1,8 +1,8 @@
 # Efficient CGI Implementation
 
-This project presents an optimized way to implement efficient concurrent CGI protocol. The seamless CGI protocol use a fork-and-execute model to fork an independent process, run the CGI scirpts, and redirect the STDOUT to the file descriptor of the accepted socket. The overhead of fork and exec will be significant when there are hundreds of concurrent CGI requests.
+This project presents an optimized way to implement efficient concurrent CGI protocols. The seamless CGI protocol use a fork-and-execute model to fork an independent process, run the CGI scirpts, and redirect the STDOUT to the file descriptor of the accepted socket. The overhead of fork and exec will be significant when there are hundreds of concurrent CGI requests.
 
-Unlike [FastCGI](https://fastcgi-archives.github.io/FastCGI_A_High-Performance_Web_Server_Interface_FastCGI.html) protocol, which requires user to write persistent CGI script, any script written in C with a main() function can be used by server in this project. My implementation apply dynamic linking and prefork thread to achieve efficiency. The perfomance of my CGI implementation is evaluated against a baseline implementation using multi threads fork-and-execute model
+Unlike the [FastCGI](https://fastcgi-archives.github.io/FastCGI_A_High-Performance_Web_Server_Interface_FastCGI.html) protocol, which requires user to write persistent CGI script, any script written in C with a main() function can be used by server in this project. My implementation apply dynamic linking and prefork thread to achieve efficiency. The perfomance of my CGI implementation is evaluated against a baseline implementation using multi-threads fork-and-execute model
 
 NOTE: This tiny project is only a demo, and it's not thoroughly tested. Do not use it in production without any further quality assurance!
 
@@ -33,8 +33,8 @@ Run one of the server listed above, and then
 ```
 
 ## Optimization
-1. Linux execv() will first load the executable binary from disk to memory, which would be a big overhead if the CGI scripts is repeatedly executed. To eliminate this cost, I use dynamic link to cache all .so into server's memory when the server is launched. This part is implmented in initialize() function of fast/server.c. 
-2. Fork() a new process for every incoming CGI request can be expensive. Thus, the server prefork several persistent processes which continuously call accept() and handle the new request. In my design, serveral process accept one shared listenning socket, but it will not cause concurrency issue when SO_REUSEPORT flag is set in setsockopt() (fast/csapp.c, line 770). This flag will allow one listening scoket be shared among several processes/threads, and the kernel will automatically balance the load between different processes/threads. This approach can be more efficient than having one main accepting process that distribute the requests to a pool of processes, since the overhead of Intra-Process Communication and additional synchronization are eliminated.
+1. Linux execv() will first load the executable binary from disk to memory, which would be a big overhead if the CGI scripts is repeatedly executed. To eliminate this cost, I use dynamic link to cache all .so into server's memory when the server is launched. This part is implemented in initialize() function of fast/server.c. 
+2. Fork() a new process for every incoming CGI request can be expensive. Thus, the server prefork several persistent processes which continuously call accept() and handle the new request. In my design, serveral process accept one shared listenning socket, but it will not cause concurrency issue when SO_REUSEPORT flag is set in setsockopt() (fast/csapp.c, line 770). This flag will allow one listening scoket be shared among several processes/threads, and the kernel will automatically balance the load between different processes/threads. This approach can be more efficient than having one main accepting process which distributes the requests to a pool of processes, since the overhead of Intra-Process Communication and additional synchronization are eliminated.
 Relative information about SO_REUSEPORT flag in Linux man page:
 > SO_REUSEPORT (since Linux 3.9)
 > Permits multiple AF_INET or AF_INET6 sockets to be bound
@@ -83,6 +83,8 @@ After the launch the server, the evaluation request will generate workload to th
 4. Results:
 Evaluation has be done on baseline server and optimized server. Shown in eval/plot_latency.png and eval/plot_throughput.png, the optimized CGI server scales well on the number of concurrency. For optimizied server, I have compare the performance of 4 preforked process and 8 preforked process, and I find that the server with 4 preforked processes has better perfromance. This makes sense since my benchmark machines has 4 cores, and there is very little IO blocking during the benchmark (The CGI scripts are called from the memory & server are busy handling huge number of concurrent requets).
 
+![Throuput Result](https://github.com/jaclass/Simple-and-Fast-Web-Server/blob/main/eval/plot_throughput.png)
+
 ## Limitation
-1. The server only cache all the CGI scripts through dynamic linking in the initialization. This means all the script adding to /cgi-bin after the server is launched cannot be found by the server.
+1. The server only caches all the CGI scripts through dynamic linking in the initialization. This means all the script added to /cgi-bin after the server is launched cannot be found by the server.
 2. The evaluation is only done on my local machine, and the requests will be dropped if there are more than 200 concurrent clients. 
